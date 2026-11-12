@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FITCAN · Mapa de Ruas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --azul:#3a93c9; --verm:#e32322; --amar:#ffd100; --verde:#4fab32; --limao:#a8dc55;
+  --navy:#1c2530; --papel:#fbf8f1; --branco:#fff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'Poppins',system-ui,sans-serif;color:var(--navy);background:var(--amar);
+  display:flex;flex-direction:column;min-height:100vh}
+header{display:flex;align-items:center;gap:20px;padding:10px 24px;background:var(--papel);
+  border-bottom:3px solid var(--navy);flex-wrap:wrap}
+header img{height:64px}
+header h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.2px}
+header h1 small{display:block;font-size:12px;font-weight:500;opacity:.7}
+.stats{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--branco);border:2.5px solid var(--navy);border-radius:14px;padding:4px 14px;
+  box-shadow:3px 3px 0 var(--navy);text-align:center;min-width:92px}
+.stat b{display:block;font-size:20px;font-weight:800;line-height:1.2}
+.stat span{font-size:11px;font-weight:500}
+.stat:nth-child(1) b{color:var(--azul)}.stat:nth-child(2) b{color:var(--verm)}
+.stat:nth-child(3) b{color:var(--verde)}.stat:nth-child(4) b{color:#c9a000}
+main{flex:1;display:grid;grid-template-columns:300px 1fr 380px;gap:16px;padding:16px;min-height:520px;height:calc(100vh - 230px)}
+.card{background:var(--papel);border:3px solid var(--navy);border-radius:22px;box-shadow:6px 6px 0 var(--navy);
+  overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.card h2{margin:0;padding:12px 16px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;
+  background:var(--azul);color:#fff;border-bottom:3px solid var(--navy)}
+.card.verde h2{background:var(--verde)} .card.verm h2{background:var(--verm)}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{width:100%;border:2.5px solid var(--navy);border-radius:12px;padding:8px 12px;background:#fff;font-size:13px}
+input:focus,select:focus,textarea:focus{outline:3px solid var(--amar)}
+.filtros{padding:12px;display:grid;gap:8px;border-bottom:2px dashed var(--navy)}
+#lista{overflow:auto;flex:1;padding:6px}
+.rua{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;cursor:pointer;border:2px solid transparent}
+.rua:hover{background:#fff}
+.rua.ativa{background:var(--limao);border-color:var(--navy)}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--navy);flex:none}
+.rua .n{font-size:13px;font-weight:600;line-height:1.2;flex:1}
+.rua .m{font-size:11px;opacity:.65;white-space:nowrap}
+#mapa{flex:1;background:var(--papel)}
+.leaflet-container{background:var(--papel);font-family:inherit}
+.leg{padding:8px 14px;border-top:3px solid var(--navy);display:flex;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:500;background:#fff}
+.leg i{display:inline-block;width:22px;height:5px;border-radius:3px;vertical-align:middle;margin-right:5px}
+.blabel{background:rgba(255,255,255,.8);border:2px solid var(--navy);border-radius:999px;font:700 10px 'Poppins',sans-serif;
+  color:var(--navy);padding:1px 8px;box-shadow:2px 2px 0 var(--navy)}
+.leaflet-tooltip.blabel::before{display:none}
+.tag{display:inline-block;font-size:10px;font-weight:700;border:2px solid var(--navy);border-radius:999px;padding:0 8px;margin:4px 4px 0 0}
+.painel{overflow:auto;padding:14px;display:grid;gap:14px;align-content:start}
+.vazio{padding:30px 16px;text-align:center;opacity:.7;font-size:14px}
+.titulo{font-size:20px;font-weight:800;line-height:1.15;margin:0}
+.sub{font-size:12px;opacity:.7;margin-top:2px}
+.fotos{display:grid;grid-template-columns:1fr 1fr;gap:14px 10px}
+.pola{background:#fff;padding:6px 6px 20px;box-shadow:2px 3px 8px rgba(0,0,0,.35);position:relative;cursor:zoom-in;
+  transform:rotate(var(--r,-2deg));transition:transform .15s}
+.pola:hover{transform:rotate(0) scale(1.04);z-index:2}
+.pola img{width:100%;display:block;aspect-ratio:4/3;object-fit:cover;background:#ddd}
+.pola::before{content:"";position:absolute;top:-8px;left:50%;width:46px;height:16px;margin-left:-23px;
+  background:rgba(255,209,0,.75);transform:rotate(-4deg)}
+.pola span{position:absolute;bottom:3px;left:8px;font-size:10px;opacity:.7}
+.nofoto{border:2.5px dashed var(--navy);border-radius:14px;padding:16px;font-size:12px;text-align:center;opacity:.75}
+label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.form{display:grid;gap:10px}
+.dois{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+textarea{min-height:70px;resize:vertical}
+.btn{border:2.5px solid var(--navy);border-radius:999px;background:var(--amar);padding:7px 16px;font-weight:700;font-size:12px;
+  cursor:pointer;box-shadow:3px 3px 0 var(--navy);transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--navy)}
+.btn.az{background:var(--azul);color:#fff}.btn.vd{background:var(--limao)}
+.acoes{display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;border-top:3px solid var(--navy);background:#fff}
+.extra{display:grid;grid-template-columns:1fr 1.4fr auto;gap:6px}
+.extra button{border:2px solid var(--navy);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
+#lb{position:fixed;inset:0;background:rgba(28,37,48,.9);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px;flex-direction:column;gap:10px}
+#lb img{max-width:94vw;max-height:80vh;border:6px solid #fff;box-shadow:0 8px 30px #000}
+#lb p{color:#fff;font-size:12px;margin:0}
+.faixa-logos{background:var(--papel);border-top:3px solid var(--navy);border-bottom:3px solid var(--navy);
+  display:flex;align-items:center;justify-content:center;gap:40px;padding:10px 24px;flex-wrap:wrap}
+.faixa-logos img{height:76px;width:auto;max-width:42vw;object-fit:contain}
+.faixa-logos .sep{width:3px;height:52px;background:var(--navy);border-radius:2px;opacity:.85}
+.regua-logos{background:#fff;border-bottom:3px solid var(--navy);padding:10px 24px;text-align:center}
+.regua-logos img{width:100%;max-width:1280px;height:auto;display:inline-block}
+@media(max-width:900px){.regua-logos{overflow-x:auto;text-align:left}.regua-logos img{width:900px;max-width:none}}
+footer{background:var(--navy);color:#fff;font-size:11px;padding:6px 24px;text-align:center}
+footer a{color:var(--amar)}
+@media(max-width:1100px){main{grid-template-columns:1fr;height:auto}.card{min-height:360px;overflow:visible}
+  #mapa{min-height:420px}#lista{max-height:300px}.painel{max-height:none}.stats{margin-left:0}}
+</style>
+</head>
+<body>
+<header>
+  <img src="assets/miniguia_horizontal.png" alt="MiniGuia FITCAN">
+  <h1>Mapa de Ruas<small>Nilópolis · fotos de rua e informações internas</small></h1>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Busque aqui</h2>
+    <div class="filtros">
+      <input id="busca" type="search" placeholder="Buscar rua…">
+      <select id="f-cat"><option value="">Todas as categorias</option></select>
+    </div>
+    <div id="lista"></div>
+  </section>
+
+  <section class="card verde">
+    <h2>Mapa</h2>
+    <div id="mapa"></div>
+    <div class="leg">
+      <label style="margin:0;text-transform:none;font-weight:600;display:flex;gap:6px;align-items:center">colorir por
+        <select id="modo" style="width:auto;padding:3px 8px;border-radius:999px">
+          <option value="via">tipo de via</option><option value="cat">categoria</option><option value="status">status</option>
+        </select></label>
+      <span id="leg-itens" style="display:flex;gap:12px;flex-wrap:wrap"></span>
+      <label style="margin:0;margin-left:auto;text-transform:none;font-weight:500">
+        <input id="base" type="checkbox" style="width:auto"> mapa base OSM</label>
+    </div>
+  </section>
+
+  <section class="card verm">
+    <h2 id="p-h">Informações gerais</h2>
+    <div class="painel" id="painel"><div class="vazio">Clique numa rua no mapa ou na lista para ver as fotos e preencher as informações.</div></div>
+  </section>
+</main>
+
+<section class="regua-logos" aria-label="Apoio e realização">
+  <img src="assets/regua_logos.png" alt="Apoio: Jabu Comunicação. Realização: Vinni Produtora Cultural, Secretaria Municipal de Cultura, Prefeitura de Nilópolis, Sistema Nacional de Cultura, Política Nacional Aldir Blanc, Ministério da Cultura, Governo do Brasil">
+</section>
+
+<div id="lb"><img alt=""><p></p></div>
+<footer>Mapa © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> ·
+  Fotos de rua © colaboradores do <a href="https://www.mapillary.com">Mapillary</a> (CC BY-SA 4.0)</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data.js"></script>
+<script>
+const COR = {motorway:'#e32322',trunk:'#e32322',primary:'#e32322',secondary:'#3a93c9',tertiary:'#4fab32'};
+const COR_STATUS = {'A visitar':'#ffd100','Visitada':'#3a93c9','Aprovada':'#4fab32','Descartada':'#e32322'};
+const STATUS = Object.keys(COR_STATUS);
+const COR_CAT = {'Cultural':'#e32322','Esporte/Lazer':'#4fab32','Gastronomia':'#ffd100','Ponto Turístico':'#3a93c9'};
+const DESC_CAT = {'Cultural':'eventos permanentes ou festas que poderiam ser mais conhecidas (rodas de samba, batalha de slam…)',
+  'Esporte/Lazer':'locais ótimos para praticar esportes ou lazer','Gastronomia':'locais gastronômicos para conhecer em Nilópolis, como restaurantes',
+  'Ponto Turístico':'pontos históricos que merecem mais destaque na cidade'};
+const CATEG = ['', ...Object.keys(COR_CAT)];
+const KEY = 'fitcan-ruas-v1';
+let info = {}; try{ info = JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){}
+const salvar = () => { try{ localStorage.setItem(KEY, JSON.stringify(info)); }catch(e){} };
+const ruas = DATA.ruas;
+const por = Object.fromEntries(ruas.map(r=>[r.nome,r]));
+const $ = s => document.querySelector(s);
+let atual = null, camadas = {};
+
+// ---- mapa
+const map = L.map('mapa',{zoomSnap:.25,zoomControl:true,preferCanvas:true});
+const base = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap',opacity:.55});
+$('#base').onchange = e => e.target.checked ? base.addTo(map) : map.removeLayer(base);
+L.polyline(DATA.limite,{color:'#1c2530',weight:5}).addTo(map);
+L.polyline(DATA.limite,{color:'#ffd100',weight:3,dashArray:'6 6'}).addTo(map);
+
+const BAIRROS = (DATA.bairros||[]).map(b=>b.nome).sort((a,b)=>a.localeCompare(b,'pt'));
+const bairroDe = r => (info[r.nome]||{}).bairro || r.bairro || '';
+const bairrosDe = r => (info[r.nome]||{}).bairro ? [info[r.nome].bairro] : (r.bairros||[]);
+const filtros = () => ({q:$('#busca').value.trim().toLowerCase(), c:$('#f-cat').value});
+const filtrando = f => !!(f.q||f.c);
+function passa(r, f=filtros()){
+  const d = info[r.nome]||{};
+  return (!f.q || r.nome.toLowerCase().includes(f.q)) && (!f.c || d.cat===f.c);
+}
+function estilo(r, f=filtros()){
+  const d = info[r.nome]||{}, modo = $('#modo').value, principal = !!COR[r.tipo];
+  let cor = COR[r.tipo]||'#1c2530', marcado = false;
+  if(modo==='status' && d.status){ cor=COR_STATUS[d.status]; marcado=true; }
+  if(modo==='cat' && d.cat){ cor=COR_CAT[d.cat]; marcado=true; }
+  if(modo!=='via' && !marcado){ cor='#9aa3ad'; }
+  const on = !filtrando(f) || passa(r,f);
+  return {color:cor, weight: marcado?5:(modo==='via'&&principal?3.5:2),
+          opacity: on ? (marcado||(modo==='via'&&principal)?1:.8) : .1};
+}
+// contornos dos bairros (embaixo das ruas, sem capturar cliques)
+const camadaBairros = {};
+(DATA.bairros||[]).forEach(b=>{
+  const p = L.polygon(b.aneis,{color:'#1c2530',weight:1.2,dashArray:'3 5',fill:true,fillColor:'#ffd100',fillOpacity:0,interactive:false}).addTo(map);
+  p.bindTooltip(b.nome,{permanent:true,direction:'center',className:'blabel',opacity:.95});
+  camadaBairros[b.nome]=p;
+});
+ruas.forEach(r=>{
+  const l = L.polyline(r.trechos,{...estilo(r),smoothFactor:1}).addTo(map);
+  l.bindTooltip(r.nome,{sticky:true});
+  l.on('click',()=>abrir(r.nome,false));
+  l.on('mouseover',()=>{ if(atual!==r.nome) l.setStyle({weight:6}); });
+  l.on('mouseout',()=>{ if(atual!==r.nome) l.setStyle(estilo(r)); });
+  camadas[r.nome]=l;
+});
+const todos = L.latLngBounds(DATA.ruas.flatMap(r=>r.trechos.flat()));
+map.fitBounds(todos.pad(-0.05));
+function legenda(){
+  const m = $('#modo').value;
+  const itens = m==='cat' ? Object.entries(COR_CAT) : m==='status' ? Object.entries(COR_STATUS)
+    : [['principal','#e32322'],['secundária','#3a93c9'],['terciária','#4fab32'],['local','#1c2530']];
+  $('#leg-itens').innerHTML = itens.map(([n,c])=>`<span><i style="background:${c}"></i>${n}</span>`).join('') +
+    (m!=='via' ? '<span><i style="background:#9aa3ad"></i>sem registro</span>' : '');
+}
+function repintar(){
+  const f = filtros();
+  ruas.forEach(r=>camadas[r.nome].setStyle(estilo(r,f)));
+  if(atual) camadas[atual].setStyle({weight:8,color:'#1c2530',opacity:1});
+  legenda();
+}
+
+// ---- lista / filtros
+$('#f-cat').innerHTML += CATEG.slice(1).map(c=>`<option title="${DESC_CAT[c]}">${c}</option>`).join('');
+function renderLista(){
+  const f = filtros();
+  const vis = ruas.filter(r=>passa(r,f));
+  $('#lista').innerHTML = vis.map(r=>{
+    const d=info[r.nome]||{}, st=d.status;
+    return `<div class="rua ${r.nome===atual?'ativa':''}" data-n="${r.nome.replace(/"/g,'&quot;')}">
+      <span class="dot" style="background:${st?COR_STATUS[st]:'#fff'}"></span>
+      <span class="n">${r.nome}<br><small style="font-weight:500;opacity:.65">${bairroDe(r)}${d.cat?' · '+d.cat:''}</small></span>
+      <span class="m">${r.fotos.length?r.fotos.length+' 📷 · ':''}${r.metros} m</span></div>`;
+  }).join('') || '<div class="vazio">Nenhuma rua encontrada.</div>';
+  document.querySelectorAll('.rua').forEach(el=>el.onclick=()=>abrir(el.dataset.n,true));
+}
+function aplicarFiltros(){ renderLista(); repintar(); }
+['#busca','#f-cat'].forEach(s=>$(s).oninput=aplicarFiltros);
+$('#modo').onchange = repintar;
+
+// ---- painel da rua
+function abrir(nome, zoom){
+  atual = nome; const r = por[nome], d = info[nome]||{};
+  repintar(); renderLista();
+  if(zoom) map.fitBounds(camadas[nome].getBounds().pad(.5),{maxZoom:18});
+  const extras = d.extras||[];
+  $('#p-h').textContent = 'Informações gerais';
+  $('#painel').innerHTML = `
+    <div><h3 class="titulo">${r.nome}</h3>
+      <div class="sub">${r.tipo||'via'} · ${r.metros} m · ${r.trechos.length} trecho(s)</div>
+      ${(r.bairros||[]).length>1?`<div class="sub">Passa por: ${r.bairros.join(', ')}</div>`:''}</div>
+    ${r.fotos.length ? `<div class="fotos">${r.fotos.map((f,i)=>`
+      <div class="pola" style="--r:${[-2.5,1.8,-1.2,2.6][i%4]}deg" data-i="${i}">
+        <img loading="lazy" src="${f.arquivo}" alt="foto de ${r.nome}"><span>${f.data}</span></div>`).join('')}</div>`
+      : `<div class="nofoto">Sem fotos do Mapillary para esta rua.<br>Rode <code>baixar_fotos.py</code> ou adicione manualmente em <code>fotos/</code>.</div>`}
+    <div class="form">
+      <div class="dois">
+        <div><label>Bairro</label><select id="i-bairro">${BAIRROS.map(s=>`<option ${bairroDe(r)===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div><label>Categoria do local</label><select id="i-cat">${CATEG.map(s=>`<option ${d.cat===s?'selected':''} title="${DESC_CAT[s]||''}">${s}</option>`).join('')}</select></div>
+      </div>
+      <div class="sub" id="i-catdesc">${DESC_CAT[d.cat]||''}</div>
+      <div><label>Status</label><select id="i-status"><option value=""></option>${STATUS.map(s=>`<option ${d.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="dois">
+        <div><label>Responsável</label><input id="i-resp" value="${d.resp||''}"></div>
+        <div><label>Capacidade (pessoas)</label><input id="i-cap" type="number" min="0" value="${d.cap||''}"></div>
+      </div>
+      <div class="dois">
+        <div><label>Contato local</label><input id="i-cont" value="${d.cont||''}"></div>
+        <div><label>Data da visita</label><input id="i-data" type="date" value="${d.data||''}"></div>
+      </div>
+      <div><label>Observações</label><textarea id="i-obs">${d.obs||''}</textarea></div>
+      <div><label>Campos personalizados</label><div id="extras" style="display:grid;gap:6px">
+        ${extras.map((e,i)=>`<div class="extra"><input data-k="${i}" value="${e[0]}" placeholder="campo"><input data-v="${i}" value="${e[1]}" placeholder="valor"><button data-x="${i}">×</button></div>`).join('')}
+      </div><button class="btn" id="add-extra" style="margin-top:8px">+ campo</button></div>
+    </div>`;
+  const grava = () => {
+    const extrasNovos = [...document.querySelectorAll('#extras .extra')].map(el=>[el.children[0].value,el.children[1].value]);
+    $('#i-catdesc').textContent = DESC_CAT[$('#i-cat').value]||'';
+    info[nome] = {bairro:$('#i-bairro').value===r.bairro?'':$('#i-bairro').value,status:$('#i-status').value,cat:$('#i-cat').value,resp:$('#i-resp').value,cap:$('#i-cap').value,
+      cont:$('#i-cont').value,data:$('#i-data').value,obs:$('#i-obs').value,extras:extrasNovos};
+    salvar(); repintar(); renderLista();
+  };
+  document.querySelectorAll('.form input,.form select,.form textarea').forEach(el=>el.oninput=grava);
+  $('#add-extra').onclick = () => { grava(); info[nome].extras.push(['','']); salvar(); abrir(nome,false); };
+  document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{ grava(); info[nome].extras.splice(+b.dataset.x,1); salvar(); abrir(nome,false); });
+  document.querySelectorAll('.pola').forEach(p=>p.onclick=()=>{
+    const f = r.fotos[+p.dataset.i]; const lb=$('#lb');
+    lb.querySelector('img').src=f.arquivo;
+    lb.querySelector('p').innerHTML=`${r.nome} · ${f.data} · <a style="color:#ffd100" target="_blank" href="https://www.mapillary.com/app/?pKey=${f.id}">ver no Mapillary</a>`;
+    lb.style.display='flex';
+  });
+  camadas[nome].bringToFront();
+}
+$('#lb').onclick = e => { if(e.target.tagName!=='A') $('#lb').style.display='none'; };
+
+renderLista(); repintar();
+</script>
+</body>
+</html>
